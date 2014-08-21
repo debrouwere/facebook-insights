@@ -17,19 +17,16 @@ page access token will not have any expiry time.
 PORT = 5000
 REDIRECT_URI = 'http://localhost:{}/'.format(PORT)
 
-graph = GraphAPI()
-
 def get_short_token(client_id, client_secret):
     facebook = OAuth2Service(
         client_id=client_id, 
         client_secret=client_secret, 
-        # name='Insights Sandbox', 
         authorize_url='https://graph.facebook.com/oauth/authorize',
         access_token_url='https://graph.facebook.com/oauth/access_token',
         base_url='https://graph.facebook.com/'
         )
     authorize_url = facebook.get_authorize_url(
-        scope='manage_pages',
+        scope='manage_pages,read_insights',
         response_type='code',
         redirect_uri=REDIRECT_URI, 
         )
@@ -44,11 +41,12 @@ def get_short_token(client_id, client_secret):
         'redirect_uri': REDIRECT_URI, 
         })
 
-def get_long_token(short_token):
+def get_long_token(client_id, client_secret, short_token):
+    graph = GraphAPI()
     data = graph.get('oauth/access_token',   
         grant_type='fb_exchange_token', 
-        client_id=os.environ['FACEBOOK_INSIGHTS_CLIENT_ID'], 
-        client_secret=os.environ['FACEBOOK_INSIGHTS_CLIENT_SECRET'], 
+        client_id=client_id, 
+        client_secret=client_secret, 
         fb_exchange_token=short_token
         )
     token = dict(urlparse.parse_qsl(data))
@@ -61,7 +59,7 @@ def get_page_tokens(long_token):
 
 def ask(client_id, client_secret):
     short_token = get_short_token(client_id, client_secret)
-    long_token = get_long_token(short_token)
+    long_token = get_long_token(client_id, client_secret, short_token)
     tokens = get_page_tokens(long_token)
     return tokens
 

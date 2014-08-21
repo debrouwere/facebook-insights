@@ -91,7 +91,8 @@ class Post(object):
         return self.graph.get(self.id + '/insights')
 
     def __repr__(self):
-        return "<Post: {} ({})>".format(self.id, self.created_time)
+        time = self.created_time.date().isoformat()
+        return "<Post: {} ({})>".format(self.id, time)
 
 # TODO: paging and memoization
 class Page(object):
