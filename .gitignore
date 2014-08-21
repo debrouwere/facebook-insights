@@ -74,5 +74,5 @@ docs/_build/
 target/
 
 # dev- and test-related files
-*.json
 .env
+sandbox

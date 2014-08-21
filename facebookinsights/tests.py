@@ -1,3 +1,11 @@
+# encoding: utf-8
+
+import facebookinsights as fi
+
+pages = fi.authenticate()
+print pages
+
+"""
 from facepy import GraphAPI
 
 graph = GraphAPI(access_token)
@@ -30,3 +38,4 @@ post.daily('likes')[0]
 
 # pass on certain values to facepy
 post.daily(retry=3)
+"""

@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 import os
 import re
 import urlparse
@@ -10,7 +12,7 @@ class Insights(object):
         self.raw = raw
 
 
-class Query(object):
+class Selection(object):
     def __init__(self, account):
         self.account = account
         self.graph = account.graph
@@ -28,32 +30,13 @@ class Query(object):
         return self.get()[key]
 
     def __iter__(self):
-        return self.get()
+        if not hasattr(self, '_results'):
+            self._results = self.get()
+        return self._results.__iter__()
 
     def get(self):
         data = self.graph.get(self.account.id + '/posts')['data']
         return [Post(self.account, post) for post in data]
-
-
-# TODO: paging and memoization
-class Account(object):
-    def __init__(self, graph, raw):
-        self.raw = raw
-        self.id = raw['id']
-        self.name = raw['name']
-        self.access_token = raw['access_token']
-        self.permissions = raw['perms']
-        self.parent_graph = graph
-        self.graph = GraphAPI(self.access_token)
-
-    @property
-    def insights(self):
-        return self.graph.get(self.id + '/insights')['data']
-
-    @property
-    def posts(self):
-        return Query(self)
-        
 
 
 class Picture(object):
@@ -64,9 +47,13 @@ class Picture(object):
         self.parsed_url = urlparse.urlparse(self.raw)
         self.qs = urlparse.parse_qs(self.parsed_url.query)
         self.origin = self.qs['url'][0]
+        self.basename = self.origin.split('/')[-1]
         self.width = self.qs['w'][0]
         self.height = self.qs['h'][0]
 
+    def __repr__(self):
+        return "<Picture: {} ({}x{})>".format(
+            self.basename, self.width, self.height)
 
 def getdata(obj, key, default=None):
     if key in obj:
@@ -103,14 +90,25 @@ class Post(object):
     def insights(self):
         return self.graph.get(self.id + '/insights')
 
+    def __repr__(self):
+        return "<Post: {} ({})>".format(self.id, self.created_time)
 
-def authenticate(token=os.environ.get('FACEBOOK_INSIGHTS_TOKEN')):
-    if not token:
-        raise Error("""
-            A token is required to authenticate. Either provide one as an 
-            argument to this function or put the token in 
-            the FACEBOOK_INSIGHTS_TOKEN environment variable.""")
+# TODO: paging and memoization
+class Page(object):
+    def __init__(self, graph):
+        raw = graph.get('me')
+        self.raw = raw
+        self.id = raw['id']
+        self.name = raw['name']
+        self.graph = graph
 
-    graph = GraphAPI(token)
-    accounts = [Account(graph, account) for account in graph.get('me/accounts')['data']]
-    return accounts
+    @property
+    def insights(self):
+        return self.graph.get(self.id + '/insights')['data']
+
+    @property
+    def posts(self):
+        return Selection(self)
+
+    def __repr__(self):
+        return "<Page {}: {}>".format(self.id, self.name)
