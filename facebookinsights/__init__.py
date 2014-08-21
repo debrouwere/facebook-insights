@@ -2,7 +2,7 @@
 
 import os
 import oauth
-import query
+import graph
 
 def authenticate(client_id=None, client_secret=None, tokens=[], token=None):
     if not client_id:
@@ -18,6 +18,6 @@ def authenticate(client_id=None, client_secret=None, tokens=[], token=None):
             in the environment as FACEBOOK_INSIGHTS_CLIENT_ID and 
             FACEBOOK_INSIGHTS_CLIENT_SECRET.""")
 
-    graphs = oauth.ask_and_authenticate(client_id, client_secret, tokens)
-    accounts = [query.Page(graph) for graph in graphs]
+    clients = oauth.ask_and_authenticate(client_id, client_secret, tokens)
+    accounts = [graph.Page(client) for client in clients]
     return accounts
