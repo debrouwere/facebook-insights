@@ -13,7 +13,6 @@ class Insights(object):
         self.raw = raw
 
 
-
 class SelectionOfPosts(object):
     def __init__(self, account):
         self.account = account
@@ -135,7 +134,12 @@ class Post(object):
             self.picture = None
 
     # TODO: support for granularity (daily, weekly, 28days, lifetime)
+    # TODO: support for date ranges (since and until)
     # TODO: better processing of results
+    def get_insight(self, metric, granularity='lifetime'):
+        params = [self.id, metric, granularity]
+        return self.graph.get("/".join(params))
+
     def get_insights(self, granularity=None):
         return self.graph.get(self.id + '/insights')
 
@@ -165,6 +169,10 @@ class Page(object):
 
     def get_insights(self, granularity=None):
         return self.graph.get(self.id + '/insights')['data']
+
+    @property
+    def token(self):
+        return self.graph.oauth_token
 
     @property
     def posts(self):
