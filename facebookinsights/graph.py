@@ -3,34 +3,43 @@
 import os
 import re
 import urlparse
-import time
-from dateutil.parser import parse as parse_date
+import pytz
+from datetime import datetime
 from facepy import GraphAPI
-
+import utils
 
 class Insights(object):
     def __init__(self, raw):
         self.raw = raw
 
 
-class Selection(object):
+
+class SelectionOfPosts(object):
     def __init__(self, account):
         self.account = account
         self.graph = account.graph
+        self.meta = {
+            'since': datetime(1, 1, 1, tzinfo=pytz.utc), 
+        }
         self.params = {
             'page': False, 
         }
 
-    def since(self, date):
-        parsed_date = parse_date(date)
-        timestamp = int(time.mktime(parsed_date.timetuple()))
+    def range(self, since, until=None):
+        if not until:
+            until = datetime.today().isoformat()
+
+        self.meta['since'] = utils.parse_utc_date(since)
         self.params['page'] = True
-        self.params['since'] = timestamp
+        self.params['since'] = utils.date_to_timestamp(since)
+        self.params['until'] = utils.date_to_timestamp(until)
         return self
 
-    # TODO
-    def last(n=1):
-        self.params['page'] = True
+    def since(self, date):
+        return self.range(date)
+
+    def latest(self, n=1):
+        self.params['limit'] = n
         return self
 
     def __getitem__(self, key):
@@ -53,7 +62,19 @@ class Selection(object):
         posts = []
         for page in pages:
             for post in page['data']:
-                posts.append(Post(self.account, post))
+                post = Post(self.account, post)
+
+                """
+                For date ranges, we can't rely on pagination 
+                because `since` and `until` parameters serve 
+                both as paginators and as range delimiters, 
+                so there will always be a next page.
+                """
+                if post.created_time >= self.meta['since']:
+                    posts.append(post)
+                else:
+                    return posts
+
         return posts
 
 
@@ -95,8 +116,8 @@ class Post(object):
         # and mtime are optional
         self.id = raw['id']
         self.type = raw['type']
-        self.created_time = parse_date(raw['created_time'])
-        self.updated_time = parse_date(raw['updated_time'])
+        self.created_time = utils.parse_date(raw['created_time'])
+        self.updated_time = utils.parse_date(raw['updated_time'])
         self.name = raw.get('name')
         self.story = raw.get('story')
         self.link = raw.get('link')
@@ -118,6 +139,17 @@ class Post(object):
     def get_insights(self, granularity=None):
         return self.graph.get(self.id + '/insights')
 
+    def resolve_link(self, clean=False):
+        if not self.link:
+            return None
+
+        url = utils.resolve_url(self.link)
+
+        if clean:
+            url = utils.baseurl(url)
+
+        return url
+
     def __repr__(self):
         time = self.created_time.date().isoformat()
         return "<Post: {} ({})>".format(self.id, time)
@@ -136,7 +168,7 @@ class Page(object):
 
     @property
     def posts(self):
-        return Selection(self)
+        return SelectionOfPosts(self)
 
     def __repr__(self):
         return "<Page {}: {}>".format(self.id, self.name)

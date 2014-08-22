@@ -3,7 +3,14 @@
 import facebookinsights as fi
 
 pages = fi.authenticate()
-print pages
+page = pages[0]
+one_day = page.posts.range('2014-08-19', '2014-08-20')
+
+for post in one_day:
+    print post.created_time, post.resolve_link(clean=True)
+
+for post in page.posts.latest(5):
+    print getattr(post, 'link')
 
 """
 from facepy import GraphAPI

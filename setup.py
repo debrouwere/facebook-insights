@@ -15,9 +15,11 @@ setup(name='facebookinsights',
         'bin/insights'
     ],
     install_requires=[
+        'requests', 
         'rauth', 
         'facepy', 
         'python-dateutil', 
+        'pytz', 
         'addressable', 
         'flask', 
         'keyring', 

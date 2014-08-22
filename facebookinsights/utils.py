@@ -1,5 +1,12 @@
 # encoding: utf-8
 
+import time
+import pytz
+from datetime import datetime
+from dateutil.parser import parse as parse_date
+import urlparse
+import requests
+
 def single_serve(message=None, port=5000):
     import logging
     from flask import Flask, Response, request
@@ -21,3 +28,25 @@ def single_serve(message=None, port=5000):
 
     app.run(port=port)
     return captured
+
+
+UTC = datetime(1, 1, 1, tzinfo=pytz.utc)
+
+def parse_utc_date(datestring):
+    return parse_date(datestring, default=UTC)
+
+def to_timestamp(date):
+    return int(time.mktime(date.timetuple()))
+
+def date_to_timestamp(datestring):
+    return to_timestamp(parse_utc_date(datestring))
+
+
+def resolve_url(url):
+    response = requests.head(url, allow_redirects=True)
+    return response.url
+
+def baseurl(url):
+    base = urlparse.urlsplit(url)[:3]
+    url = urlparse.urlunsplit(base + ('', ''))
+    return url
