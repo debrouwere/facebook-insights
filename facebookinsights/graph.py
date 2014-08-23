@@ -6,6 +6,7 @@ import math
 import copy
 import urlparse
 import functools
+from collections import namedtuple
 import pytz
 from datetime import datetime
 import utils
@@ -13,17 +14,13 @@ from utils.api import GraphAPI
 from utils.functional import immutable, memoize
 
 
-class Insights(object):
-    def __init__(self, raw):
-        self.raw = raw
-
-
 class Selection(object):
     def __init__(self, edge):
         self.edge = edge
         self.graph = edge.graph
         self.meta = {
-            'since': datetime(1, 1, 1, tzinfo=pytz.utc), 
+            'since': utils.date.COMMON_ERA, 
+            'until': datetime.now(), 
         }
         self.params = {
             'page': False, 
@@ -95,25 +92,24 @@ class InsightsSelection(Selection):
     @immutable
     def daily(self, metrics=None):
         self.params['period'] = 'day'
-        return self.metrics(metrics)
+        return self._metrics(metrics)
 
     @immutable
     def weekly(self, metrics=None):
         self.params['period'] = 'week'
-        return self.metrics(metrics)
+        return self._metrics(metrics)
 
     @immutable
     def monthly(self, metrics=None):
         self.params['period'] = 'days_28'
-        return self.metrics(metrics)
+        return self._metrics(metrics)
 
     @immutable
     def lifetime(self, metrics=None):
         self.params['period'] = 'lifetime'
-        return self.metrics(metrics)
+        return self._metrics(metrics)
 
-    @immutable
-    def metrics(self, ids):
+    def _metrics(self, ids=None):
         if ids:
             if isinstance(ids, list):
                 self.meta['single'] = False
@@ -123,10 +119,14 @@ class InsightsSelection(Selection):
             self.meta['metrics'] = ids
         return self
 
+    @property
+    def _has_daterange(self):
+        return 'since' in self.params or 'until' in self.params
+
     def get(self):
         # by default, Facebook returns three days 
         # worth' of insights data
-        if 'until' in self.meta:
+        if self._has_daterange:
             seconds = (self.meta['until'] - self.meta['since']).total_seconds()
             days = math.ceil(seconds / 60 / 60 / 24)
         else:
@@ -136,6 +136,10 @@ class InsightsSelection(Selection):
         # the subranges in a batch request (this is a little bit
         # more complex because multiple metrics are *also* batched
         # and so these two things have to work together)
+        # 
+        # TODO: investigate whether this applies too when asking for 
+        # weekly or monthly metrics (that is, whether the limit is 93
+        # result rows or truly 93 days)
         if days > 31 * 3:
             raise NotImplementedError(
                 "Can only fetch date ranges smaller than 3 months.")
@@ -144,15 +148,68 @@ class InsightsSelection(Selection):
             metrics = []
             for metric in self.meta['metrics']:
                 metrics.append({'relative_url': metric})
-            insights = self.graph.all('insights', 
+            results = self.graph.all('insights', 
                 metrics, **self.params)
         else:
-            insights = self.graph.get('insights', 
-                **self.params)
+            results = [self.graph.get('insights', 
+                **self.params)]
 
-        # if self.meta['single']: 
-        #     unwrap_result
-        return insights
+        datasets = []
+        for result in results:
+            datasets.extend(result['data'])
+
+        fields = ['end_time']
+        data = {}
+        for dataset in datasets:
+            metric = dataset['name']
+            rows = dataset['values']
+            fields.append(metric)
+
+            for row in rows:
+                value = row['value']
+                end_time = row.get('end_time')
+                if end_time:
+                    end_time = utils.date.parse(end_time)
+                else:
+                    end_time = 'lifetime'
+
+                data.setdefault(end_time, {})[metric] = value
+
+        Row = namedtuple('Row', fields)
+
+        rows = []
+        for time, values in data.items():
+            rows.append(Row(end_time=time, **values))
+
+        # when a single metric is requested (and not 
+        # wrapped in a list), we return a simplified 
+        # data format
+        if self.meta['single']:
+            metric = self.meta['metrics'][0]
+            return [getattr(row, metric) for row in rows]
+        else:
+            return rows
+
+    def serialize(self):
+        return [row._asdict() for row in self.get()]
+
+    def __repr__(self):
+        if 'metrics' in self.meta:
+            metrics = ", ".join(self.meta['metrics'])
+        else:
+            metrics = 'all available metrics'
+
+        if self._has_daterange:
+            date = ' from {} to {}'.format(
+                self.meta['since'].date().isoformat(), 
+                self.meta['until'].date().isoformat(), 
+                )
+        else:
+            date = ''
+
+        return u"<Insights for '{}' ({}{})>".format(
+            repr(self.edge.name), metrics, date)
+        
 
 
 class Picture(object):
@@ -173,7 +230,7 @@ class Picture(object):
         self.basename = self.origin.split('/')[-1]
 
     def __repr__(self):
-        return "<Picture: {} ({}x{})>".format(
+        return u"<Picture: {} ({}x{})>".format(
             self.basename, self.width, self.height)
 
 
@@ -197,8 +254,7 @@ class Post(object):
         # when getting post data, or just some
         self.comments = utils.api.getdata(raw, 'comments')
         self.likes = utils.api.getdata(raw, 'likes')
-        QUOTE_PATTERN = ur'[\"\u201c\u201e\u00ab]\s?(.+?)\s?[\"\u201c\u201d\u00bb]'
-        self.quotes = re.findall(QUOTE_PATTERN, self.description or '')
+        self.quotes = utils.extract_quotes(self.description or '')
         if 'picture' in raw:
             self.picture = Picture(self, raw['picture'])
         else:
@@ -221,7 +277,7 @@ class Post(object):
 
     def __repr__(self):
         time = self.created_time.date().isoformat()
-        return "<Post: {} ({})>".format(self.id, time)
+        return u"<Post: {} ({})>".format(self.id, time)
 
 
 class Page(object):
@@ -233,16 +289,16 @@ class Page(object):
         self.name = data['name']
 
     @property
-    def insights(self):
-        return InsightsSelection(self)
-
-    @property
     def token(self):
         return self.graph.oauth_token
+
+    @property
+    def insights(self):
+        return InsightsSelection(self)
 
     @property
     def posts(self):
         return PostSelection(self)
 
     def __repr__(self):
-        return "<Page {}: {}>".format(self.id, self.name)
+        return u"<Page {}: {}>".format(self.id, self.name)

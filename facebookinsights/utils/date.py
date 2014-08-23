@@ -5,7 +5,7 @@ from datetime import datetime
 import pytz
 from dateutil.parser import parse
 
-UTC = datetime(1, 1, 1, tzinfo=pytz.utc)
+UTC = COMMON_ERA = datetime(1, 1, 1, tzinfo=pytz.utc)
 
 def parse_utc(datestring):
     return parse(datestring, default=UTC)

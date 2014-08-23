@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 import copy
 import urllib
 import facepy
@@ -20,9 +22,16 @@ class GraphAPI(facepy.GraphAPI):
             endpoint = [endpoint]
         return endpoint
 
-    def _resolve_endpoint(self, endpoint, options=None):
+    def _resolve_endpoint(self, endpoint, options={}):
         endpoint = self._segmentize_endpoint(endpoint)
         url = "/".join(self.base + endpoint)
+
+        # remove facepy options, retain everything 
+        # that needs to end up in the querystring
+        blacklist = ['path', 'page', 'retry', 'data', 'method', 'relative_url']
+        for key in options.keys():
+            if key in blacklist:
+                del options[key]
 
         if options:
             qs = urllib.urlencode(options)
@@ -45,8 +54,8 @@ class GraphAPI(facepy.GraphAPI):
             params = copy.copy(params)
             params.update(options)
             segments = self._segmentize_endpoint(endpoint)
-            relative_url = params.get('relative_url', [])
-            url = self._resolve_endpoint(segments + relative_url)
+            relative_url = params.get('relative_url')
+            url = self._resolve_endpoint(segments + [relative_url], params)
             request = {
                 'method': method, 
                 'relative_url': url, 
@@ -57,13 +66,7 @@ class GraphAPI(facepy.GraphAPI):
 
             requests.append(request)
 
-        # from pprint import pprint
-        # pprint(requests)
-        
-        # TODO: stitch these results together, so 
-        # that using `get` or `all` is transparent
-        results = self.batch(requests)
-        return results
+        return self.batch(requests)
 
     def get(self, relative_endpoint=[], *vargs, **kwargs):
         """ An endpoint can be specified as a string

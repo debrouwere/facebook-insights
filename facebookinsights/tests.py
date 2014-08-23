@@ -22,9 +22,16 @@ if __name__ == '__main__':
         print post.link
     """
 
-    post = page.posts.latest(25)[-1]
-    print post.link
-    print post.insights.lifetime('post_impressions').get()
+    print page.insights.daily('page_stories').get()
+    print page.insights.daily(['page_stories', 'page_storytellers']).get()
+
+    post = page.posts.latest(10)[-1]
+    metrics = ['post_impressions', 'post_consumptions']
+    query = post.insights.lifetime(metrics)
+    print query
+    insights = query.get()
+    print insights
+    print json.dumps(query.serialize(), indent=4)
 
 
 """
