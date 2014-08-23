@@ -1,10 +1,11 @@
 # encoding: utf-8
 
 import time
-import pytz
-from datetime import datetime
-from dateutil.parser import parse as parse_date
+import textwrap
 import urlparse
+from datetime import datetime
+import pytz
+from dateutil.parser import parse as parse_date
 import requests
 
 def single_serve(message=None, port=5000):
@@ -50,3 +51,7 @@ def baseurl(url):
     base = urlparse.urlsplit(url)[:3]
     url = urlparse.urlunsplit(base + ('', ''))
     return url
+
+
+def dedent(string):
+    return textwrap.dedent(string).replace('\n', '')

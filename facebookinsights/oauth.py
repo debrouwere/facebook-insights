@@ -57,18 +57,8 @@ def get_page_tokens(long_token):
     accounts = graph.get('me/accounts')['data']
     return [account['access_token'] for account in accounts]
 
-def ask(client_id, client_secret):
+def authorize(client_id, client_secret):
     short_token = get_short_token(client_id, client_secret)
     long_token = get_long_token(client_id, client_secret, short_token)
     tokens = get_page_tokens(long_token)
     return tokens
-
-def authenticate(token):
-    return GraphAPI(token)
-
-def ask_and_authenticate(client_id, client_secret, tokens=[]):
-    # only ask for tokens if we have to
-    if not len(tokens):
-        tokens = ask(client_id, client_secret)
-
-    return [authenticate(token) for token in tokens]

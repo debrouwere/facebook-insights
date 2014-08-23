@@ -1,4 +1,5 @@
 * immutable queries (a `clone` method and the `immutable` util from `python-google-analytics`)
 * more flexible date ranges, e.g. a `days` argument that can be specified instead of an end date, etc. (code can mostly be copied from `python-google-analytics`)
+* result processing (extract individual metrics, rows as named tuples)
 * README
 * the entire CLI (authentication, page posts and post insight queries)

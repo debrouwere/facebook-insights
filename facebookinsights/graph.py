@@ -8,6 +8,14 @@ from datetime import datetime
 from facepy import GraphAPI
 import utils
 
+
+def getdata(obj, key, default=None):
+    if key in obj:
+        return obj[key]['data']
+    else:
+        return default
+
+
 class Insights(object):
     def __init__(self, raw):
         self.raw = raw
@@ -99,13 +107,6 @@ class Picture(object):
             self.basename, self.width, self.height)
 
 
-def getdata(obj, key, default=None):
-    if key in obj:
-        return obj[key]['data']
-    else:
-        return default
-
-
 class Post(object):
     def __init__(self, account, raw):
         self.account = account
@@ -158,14 +159,14 @@ class Post(object):
         time = self.created_time.date().isoformat()
         return "<Post: {} ({})>".format(self.id, time)
 
-# TODO: paging and memoization
+
 class Page(object):
-    def __init__(self, graph):
-        raw = graph.get('me')
-        self.raw = raw
-        self.id = raw['id']
-        self.name = raw['name']
-        self.graph = graph
+    def __init__(self, token):
+        self.graph = GraphAPI(token)
+        data = self.graph.get('me')
+        self.raw = data
+        self.id = data['id']
+        self.name = data['name']
 
     def get_insights(self, granularity=None):
         return self.graph.get(self.id + '/insights')['data']
