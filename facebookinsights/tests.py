@@ -11,8 +11,8 @@ else:
     page = fi.authenticate()[0]
     keyring.set_password('facebook-insights', 'test', page.token)
 
-
 if __name__ == '__main__':
+    """
     one_day = page.posts.range('2014-08-19', '2014-08-20')
 
     for post in one_day:
@@ -20,6 +20,12 @@ if __name__ == '__main__':
 
     for post in page.posts.latest(5):
         print post.link
+    """
+
+    post = page.posts.latest(25)[-1]
+    print post.link
+    print post.insights.lifetime('post_impressions').get()
+
 
 """
 from facepy import GraphAPI

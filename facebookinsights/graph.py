@@ -2,11 +2,15 @@
 
 import os
 import re
+import math
+import copy
 import urlparse
+import functools
 import pytz
 from datetime import datetime
 import utils
 from utils.api import GraphAPI
+from utils.functional import immutable, memoize
 
 
 class Insights(object):
@@ -15,9 +19,9 @@ class Insights(object):
 
 
 class Selection(object):
-    def __init__(self, account):
-        self.account = account
-        self.graph = account.graph
+    def __init__(self, edge):
+        self.edge = edge
+        self.graph = edge.graph
         self.meta = {
             'since': datetime(1, 1, 1, tzinfo=pytz.utc), 
         }
@@ -25,16 +29,25 @@ class Selection(object):
             'page': False, 
         }
 
+    def clone(self):
+        selection = self.__class__(self.edge)
+        selection.meta = copy.copy(self.meta)
+        selection.params = copy.copy(self.params)
+        return selection
+
+    @immutable
     def range(self, since, until=None):
         if not until:
             until = datetime.today().isoformat()
 
         self.meta['since'] = utils.date.parse_utc(since)
+        self.meta['until'] = utils.date.parse_utc(until)
         self.params['page'] = True
         self.params['since'] = utils.date.timestamp(since)
         self.params['until'] = utils.date.timestamp(until)
         return self
 
+    @immutable
     def since(self, date):
         return self.range(date)
 
@@ -48,6 +61,7 @@ class Selection(object):
 
 
 class PostSelection(Selection):
+    @immutable
     def latest(self, n=1):
         self.params['limit'] = n
         return self
@@ -56,22 +70,19 @@ class PostSelection(Selection):
         return self.graph.find(q, 'post')
 
     def get(self):
-        pages = self.graph.get([self.account.id, 'posts'], 
-            **self.params)
+        pages = self.graph.get('posts', **self.params)
         if not self.params['page']:
             pages = [pages]
 
         posts = []
         for page in pages:
             for post in page['data']:
-                post = Post(self.account, post)
+                post = Post(self.edge, post)
 
-                """
-                For date ranges, we can't rely on pagination 
-                because `since` and `until` parameters serve 
-                both as paginators and as range delimiters, 
-                so there will always be a next page.
-                """
+                # For date ranges, we can't rely on pagination 
+                # because `since` and `until` parameters serve 
+                # both as paginators and as range delimiters, 
+                # so there will always be a next page.
                 if post.created_time >= self.meta['since']:
                     posts.append(post)
                 else:
@@ -81,8 +92,67 @@ class PostSelection(Selection):
 
 
 class InsightsSelection(Selection):
+    @immutable
+    def daily(self, metrics=None):
+        self.params['period'] = 'day'
+        return self.metrics(metrics)
+
+    @immutable
+    def weekly(self, metrics=None):
+        self.params['period'] = 'week'
+        return self.metrics(metrics)
+
+    @immutable
+    def monthly(self, metrics=None):
+        self.params['period'] = 'days_28'
+        return self.metrics(metrics)
+
+    @immutable
+    def lifetime(self, metrics=None):
+        self.params['period'] = 'lifetime'
+        return self.metrics(metrics)
+
+    @immutable
+    def metrics(self, ids):
+        if ids:
+            if isinstance(ids, list):
+                self.meta['single'] = False
+            else:
+                self.meta['single'] = True
+                ids = [ids]
+            self.meta['metrics'] = ids
+        return self
+
     def get(self):
-        insights = self.graph.get([self.account.id, 'insights'])
+        # by default, Facebook returns three days 
+        # worth' of insights data
+        if 'until' in self.meta:
+            seconds = (self.meta['until'] - self.meta['since']).total_seconds()
+            days = math.ceil(seconds / 60 / 60 / 24)
+        else:
+            days = 3
+
+        # TODO: for large date ranges, chunk them up and request
+        # the subranges in a batch request (this is a little bit
+        # more complex because multiple metrics are *also* batched
+        # and so these two things have to work together)
+        if days > 31 * 3:
+            raise NotImplementedError(
+                "Can only fetch date ranges smaller than 3 months.")
+
+        if 'metrics' in self.meta:
+            metrics = []
+            for metric in self.meta['metrics']:
+                metrics.append({'relative_url': metric})
+            insights = self.graph.all('insights', 
+                metrics, **self.params)
+        else:
+            insights = self.graph.get('insights', 
+                **self.params)
+
+        # if self.meta['single']: 
+        #     unwrap_result
+        return insights
 
 
 class Picture(object):
@@ -110,10 +180,10 @@ class Picture(object):
 class Post(object):
     def __init__(self, account, raw):
         self.account = account
-        self.graph = account.graph
         self.raw = raw
         # most fields aside from id, type, ctime 
         # and mtime are optional
+        self.graph = account.graph.partial(raw['id'])
         self.id = raw['id']
         self.type = raw['type']
         self.created_time = utils.date.parse(raw['created_time'])
@@ -134,14 +204,9 @@ class Post(object):
         else:
             self.picture = None
 
-    # TODO: support for granularity (daily, weekly, 28days, lifetime)
-    # TODO: support for date ranges (since and until)
-    # TODO: better processing of results
-    def get_insight(self, metric, granularity='lifetime'):
-        return self.graph.get([self.id, metric, granularity])
-
-    def get_insights(self, granularity=None):
-        return self.graph.get([self.id, 'insights'])
+    @property
+    def insights(self):
+        return InsightsSelection(self)
 
     def resolve_link(self, clean=False):
         if not self.link:
@@ -161,8 +226,8 @@ class Post(object):
 
 class Page(object):
     def __init__(self, token):
-        self.graph = GraphAPI(token)
-        data = self.graph.get('me')
+        self.graph = GraphAPI(token).partial('me')
+        data = self.graph.get()
         self.raw = data
         self.id = data['id']
         self.name = data['name']

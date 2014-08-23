@@ -15,9 +15,13 @@ class GraphAPI(facepy.GraphAPI):
         self.base = []
         super(GraphAPI, self).__init__(*vargs, **kwargs)
 
-    def _resolve_endpoint(self, endpoint, options=None):
+    def _segmentize_endpoint(self, endpoint):
         if not isinstance(endpoint, list):
             endpoint = [endpoint]
+        return endpoint
+
+    def _resolve_endpoint(self, endpoint, options=None):
+        endpoint = self._segmentize_endpoint(endpoint)
         url = "/".join(self.base + endpoint)
 
         if options:
@@ -28,18 +32,21 @@ class GraphAPI(facepy.GraphAPI):
 
     def partial(self, base):
         client = GraphAPI(self.oauth_token)
-        client.base.append(self._normalize_endpoint(base))
+        client.base = client.base + self._segmentize_endpoint(base)
         return client
 
     def all(self, endpoint, paramsets, method='GET', body=False, **options):
         """ A nicer interface for batch requests to the 
-        same endpoint but with different parameters. """
+        same endpoint but with different parameters, e.g. 
+        different date ranges. """
 
         requests = []
         for params in paramsets:
             params = copy.copy(params)
             params.update(options)
-            url = self._resolve_endpoint(endpoint, params)
+            segments = self._segmentize_endpoint(endpoint)
+            relative_url = params.get('relative_url', [])
+            url = self._resolve_endpoint(segments + relative_url)
             request = {
                 'method': method, 
                 'relative_url': url, 
@@ -50,10 +57,15 @@ class GraphAPI(facepy.GraphAPI):
 
             requests.append(request)
 
+        # from pprint import pprint
+        # pprint(requests)
+        
+        # TODO: stitch these results together, so 
+        # that using `get` or `all` is transparent
+        results = self.batch(requests)
+        return results
 
-        return self.batch(requests)
-
-    def get(self, relative_endpoint, *vargs, **kwargs):
+    def get(self, relative_endpoint=[], *vargs, **kwargs):
         """ An endpoint can be specified as a string
          or as a list of path segments. """
 
