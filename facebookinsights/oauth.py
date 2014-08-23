@@ -1,9 +1,9 @@
 # encoding: utf-8
 
 import os
-from facepy import GraphAPI
 from rauth import OAuth2Service
 import utils
+from utils.api import GraphAPI
 import urlparse
 import webbrowser
 
@@ -31,7 +31,7 @@ def get_short_token(client_id, client_secret):
         redirect_uri=REDIRECT_URI, 
         )
     webbrowser.open(authorize_url)
-    qs = utils.single_serve(
+    qs = utils.server.single_serve(
         message='Authentication flow completed. You may close the browser tab.', 
         port=PORT, 
         )

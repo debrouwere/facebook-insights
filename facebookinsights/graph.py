@@ -5,15 +5,8 @@ import re
 import urlparse
 import pytz
 from datetime import datetime
-from facepy import GraphAPI
 import utils
-
-
-def getdata(obj, key, default=None):
-    if key in obj:
-        return obj[key]['data']
-    else:
-        return default
+from utils.api import GraphAPI
 
 
 class Insights(object):
@@ -21,7 +14,7 @@ class Insights(object):
         self.raw = raw
 
 
-class SelectionOfPosts(object):
+class Selection(object):
     def __init__(self, account):
         self.account = account
         self.graph = account.graph
@@ -36,18 +29,14 @@ class SelectionOfPosts(object):
         if not until:
             until = datetime.today().isoformat()
 
-        self.meta['since'] = utils.parse_utc_date(since)
+        self.meta['since'] = utils.date.parse_utc(since)
         self.params['page'] = True
-        self.params['since'] = utils.date_to_timestamp(since)
-        self.params['until'] = utils.date_to_timestamp(until)
+        self.params['since'] = utils.date.timestamp(since)
+        self.params['until'] = utils.date.timestamp(until)
         return self
 
     def since(self, date):
         return self.range(date)
-
-    def latest(self, n=1):
-        self.params['limit'] = n
-        return self
 
     def __getitem__(self, key):
         return self.get()[key]
@@ -57,11 +46,17 @@ class SelectionOfPosts(object):
             self._results = self.get()
         return self._results.__iter__()
 
+
+class PostSelection(Selection):
+    def latest(self, n=1):
+        self.params['limit'] = n
+        return self
+
     def find(self, q):
         return self.graph.find(q, 'post')
 
     def get(self):
-        pages = self.graph.get(self.account.id + '/posts', 
+        pages = self.graph.get([self.account.id, 'posts'], 
             **self.params)
         if not self.params['page']:
             pages = [pages]
@@ -83,6 +78,11 @@ class SelectionOfPosts(object):
                     return posts
 
         return posts
+
+
+class InsightsSelection(Selection):
+    def get(self):
+        insights = self.graph.get([self.account.id, 'insights'])
 
 
 class Picture(object):
@@ -116,8 +116,8 @@ class Post(object):
         # and mtime are optional
         self.id = raw['id']
         self.type = raw['type']
-        self.created_time = utils.parse_date(raw['created_time'])
-        self.updated_time = utils.parse_date(raw['updated_time'])
+        self.created_time = utils.date.parse(raw['created_time'])
+        self.updated_time = utils.date.parse(raw['updated_time'])
         self.name = raw.get('name')
         self.story = raw.get('story')
         self.link = raw.get('link')
@@ -125,8 +125,8 @@ class Post(object):
         self.shares = raw.get('shares')
         # TODO: figure out if *all* comments and likes are included 
         # when getting post data, or just some
-        self.comments = getdata(raw, 'comments')
-        self.likes = getdata(raw, 'likes')
+        self.comments = utils.api.getdata(raw, 'comments')
+        self.likes = utils.api.getdata(raw, 'likes')
         QUOTE_PATTERN = ur'[\"\u201c\u201e\u00ab]\s?(.+?)\s?[\"\u201c\u201d\u00bb]'
         self.quotes = re.findall(QUOTE_PATTERN, self.description or '')
         if 'picture' in raw:
@@ -138,20 +138,19 @@ class Post(object):
     # TODO: support for date ranges (since and until)
     # TODO: better processing of results
     def get_insight(self, metric, granularity='lifetime'):
-        params = [self.id, metric, granularity]
-        return self.graph.get("/".join(params))
+        return self.graph.get([self.id, metric, granularity])
 
     def get_insights(self, granularity=None):
-        return self.graph.get(self.id + '/insights')
+        return self.graph.get([self.id, 'insights'])
 
     def resolve_link(self, clean=False):
         if not self.link:
             return None
 
-        url = utils.resolve_url(self.link)
+        url = utils.url.resolve(self.link)
 
         if clean:
-            url = utils.baseurl(url)
+            url = utils.url.base(url)
 
         return url
 
@@ -168,8 +167,9 @@ class Page(object):
         self.id = data['id']
         self.name = data['name']
 
-    def get_insights(self, granularity=None):
-        return self.graph.get(self.id + '/insights')['data']
+    @property
+    def insights(self):
+        return InsightsSelection(self)
 
     @property
     def token(self):
@@ -177,7 +177,7 @@ class Page(object):
 
     @property
     def posts(self):
-        return SelectionOfPosts(self)
+        return PostSelection(self)
 
     def __repr__(self):
         return "<Page {}: {}>".format(self.id, self.name)

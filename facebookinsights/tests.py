@@ -11,13 +11,15 @@ else:
     page = fi.authenticate()[0]
     keyring.set_password('facebook-insights', 'test', page.token)
 
-one_day = page.posts.range('2014-08-19', '2014-08-20')
 
-for post in one_day:
-    print post.created_time, post.link #post.resolve_link(clean=True)
+if __name__ == '__main__':
+    one_day = page.posts.range('2014-08-19', '2014-08-20')
 
-for post in page.posts.latest(5):
-    print post.link
+    for post in one_day:
+        print post.created_time, post.link #post.resolve_link(clean=True)
+
+    for post in page.posts.latest(5):
+        print post.link
 
 """
 from facepy import GraphAPI
@@ -36,7 +38,7 @@ page.posts.find(url='yadda')
 post.insights.daily(since=...)
 
 post = page.posts.last()
-# get (generic), hourly, daily, weekly, monthly, lifetime
+# get (generic), daily, weekly, monthly, lifetime
 # (monthly always means 28 days)
 post.daily('likes')
 post.monthly(['likes', 'comments'])
