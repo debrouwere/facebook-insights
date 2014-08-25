@@ -9,6 +9,7 @@ import url
 import re
 import textwrap
 
+
 def dedent(string):
     return textwrap.dedent(string).replace('\n', '')
 
