@@ -5,7 +5,7 @@
 * **Reporting.** Outputs simple timeseries of the data rather than verbose API responses.
 * **Portability.** JSON output means you can analyze the data in any language from R to Julia to Ruby to Java.
 
-`facebook-insights` is in a usable state, but still under development so some things might change and others still need polish.
+**Development status:** the Python interface to `facebook-insights` is close to stable, but some things might change and others still need polish. The command-line interface is still very much a work in progress and you probably shouldn't try to use it yet.
 
 ## Authentication
 
@@ -22,22 +22,26 @@ Short term access (a couple of hours) is most easily gained through the [Graph A
 
 On the command line: 
 
-    # (suggested interface, not built yet)
-    # use a token on every request
-    insights posts \
-        --token <your token here> \
-        --since 2014-08-01 \
-        --until 2014-08-10 \
-        --metrics post_impressions
-    # use a saved token from a `~/.facebookinsights` 
-    # INI file instead
-    insights posts \
-        --profile <name>
+```sh
+# (suggested interface, not built yet)
+# use a token on every request
+insights posts \
+    --token <your token here> \
+    --since 2014-08-01 \
+    --until 2014-08-10 \
+    --metrics post_impressions
+# use a saved token from a `~/.facebookinsights` 
+# INI file instead
+insights posts \
+    --profile <name>
+```
 
 In Python: 
 
-    import facebookinsights as fi
-    page = fi.authenticate(token='your page token goes here')
+```python
+import facebookinsights as fi
+page = fi.authenticate(token='your page token goes here')
+```
 
 ### Long-term
 
@@ -56,27 +60,33 @@ If on the other hand you just want to analyze your own Facebook Insights data, y
 
 On the command-line, get authorization and save the resulting page tokens:
 
-    # (suggested interface, not built yet)
-    # provide client_id and client_secret
-    insights auth <client_id> <client_secret>
-    # use a profile from a `~/.facebookinsights` 
-    # INI file instead
-    insights auth --profile <name>
+```sh
+# (suggested interface, not built yet)
+# provide client_id and client_secret
+insights auth <client_id> <client_secret>
+# use a profile from a `~/.facebookinsights` 
+# INI file instead
+insights auth --profile <name>
+```
 
 In Python:
     
-    import facebookinsights as fi
-    # this will launch a web browser to authenticate
-    pages = fi.authenticate(
-        client_id='your client id', 
-        client_secret='your client secret', 
-        )
+```python
+import facebookinsights as fi
+# this will launch a web browser to authenticate
+pages = fi.authenticate(
+    client_id='your client id', 
+    client_secret='your client secret', 
+    )
+```
 
 If no arguments to `authenticate` are specified, `facebook-insights` will look for environment variables named `FACEBOOK_INSIGHTS_CLIENT_ID` and `FACEBOOK_INSIGHTS_CLIENT_SECRET` which correspond to the App ID and App Secret you got from your app's settings page earlier.
 
-    import facebookinsights as fi
-    # this will launch a web browser to authenticate
-    pages = fi.authenticate()
+```python
+import facebookinsights as fi
+# this will launch a web browser to authenticate
+pages = fi.authenticate()
+```
 
 `pages` will be a list of `Page` objects. You can access a page's token with `page.token`, which means you can make save those tokens for later use. This is especially important for analyses and other code that runs unattended, as getting new tokens through an oAuth authorization process always requires user interaction.
 
