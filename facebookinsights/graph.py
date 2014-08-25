@@ -33,15 +33,19 @@ class Selection(object):
         return selection
 
     @immutable
-    def range(self, since, until=None):
-        if not until:
-            until = datetime.today().isoformat()
+    def range(self, since=None, until=None, months=0, days=0):
+        if not (since or until or days or months):
+            raise ValueError()
 
-        self.meta['since'] = utils.date.parse_utc(since)
-        self.meta['until'] = utils.date.parse_utc(until)
+        if not until:
+            until = datetime.today()
+
+        since, until = utils.date.range(since, until, months, days)
+        self.meta['since'] = since
+        self.meta['until'] = until
         self.params['page'] = True
-        self.params['since'] = utils.date.timestamp(since)
-        self.params['until'] = utils.date.timestamp(until)
+        self.params['since'] = utils.date.timestamp(since, utc=True)
+        self.params['until'] = utils.date.timestamp(until, utc=True)
         return self
 
     @immutable

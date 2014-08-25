@@ -4,6 +4,8 @@ import os
 import oauth
 import graph
 import utils
+# import commands
+
 
 def authenticate(client_id=None, client_secret=None, tokens=[], token=None):
     if not client_id:
