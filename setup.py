@@ -11,10 +11,13 @@ setup(name='facebookinsights',
     license='ISC',
     packages=find_packages(),
     keywords='data analytics api wrapper facebook insights',
-    scripts=[
-        'bin/insights'
-    ],
+    entry_points = {
+          'console_scripts': [
+                'insights = insights.commands:main', 
+          ],
+    }, 
     install_requires=[
+        'click', 
         'requests', 
         'rauth', 
         'facepy', 
