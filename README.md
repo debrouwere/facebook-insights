@@ -51,6 +51,7 @@ It is also possible to ask Facebook for page tokens that remain valid indefinite
 2. Fill out the requisite information
 3. After being redirected to your app's settings page, grab the App ID and App Secret. Save them somewhere, e.g. as environment variables in your `~/.bashrc`
 4. Go to advanced settings and specify that your app is a `Native or desktop app`
+5. Lower down on the advanced settings page, add `http://localhost:5000/` to the Valid OAuth redirect URIs.
 
 If you intend to make your app public at some point, there are various other steps to go through: whitelisting callback URLs, going through the Facebook app approval process and so on.
 
