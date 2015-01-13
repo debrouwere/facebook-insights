@@ -6,7 +6,7 @@ import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
-UTC = COMMON_ERA = builtin_datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
+UTC = COMMON_ERA = builtin_datetime.datetime(1, 1, 1, tzinfo=pytz.utc).date()
 
 def parse(datestring, utc=False):
     if utc:

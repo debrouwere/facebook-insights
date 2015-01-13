@@ -1,4 +1,6 @@
-all:
+all: docs
+
+docs:
 	pandoc -o README.rst README.md
 
 upload:

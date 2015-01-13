@@ -184,18 +184,23 @@ class InsightsSelection(Selection):
 
         Row = namedtuple('Row', fields)
 
-        rows = []
+        results = []
         for time, values in data.items():
-            rows.append(Row(end_time=time, **values))
+            results.append(Row(end_time=time, **values))
 
         # when a single metric is requested (and not 
         # wrapped in a list), we return a simplified 
         # data format
         if self.meta['single']:
             metric = self.meta['metrics'][0]
-            return [getattr(row, metric) for row in rows]
-        else:
-            return rows
+            results = [getattr(row, metric) for row in results]
+
+        # when a lifetime metric is requested, 
+        # we can simplify further
+        if self.params['period'] == 'lifetime':
+            results = results[0]
+
+        return rows
 
     def serialize(self):
         return [row._asdict() for row in self.get()]
@@ -251,12 +256,12 @@ class Picture(object):
 
 
 class Post(object):
-    def __init__(self, account, raw):
-        self.account = account
+    def __init__(self, page, raw):
+        self.page = page
         self.raw = raw
         # most fields aside from id, type, ctime 
         # and mtime are optional
-        self.graph = account.graph.partial(raw['id'])
+        self.graph = page.graph.partial(raw['id'])
         self.id = raw['id']
         self.type = raw['type']
         self.created_time = utils.date.parse(raw['created_time'])
