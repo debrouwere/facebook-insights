@@ -322,7 +322,9 @@ class Page(object):
         data = self.graph.get()
         self.raw = data
         self.id = data['id']
+        self.username = data['username']
         self.name = data['name']
+        self.link = data.get('link')
 
     @property
     def token(self):
