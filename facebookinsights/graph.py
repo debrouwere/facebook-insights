@@ -8,7 +8,7 @@ import urlparse
 import functools
 from collections import namedtuple
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 import utils
 from utils.api import GraphAPI
 from utils.functional import immutable, memoize
@@ -44,8 +44,11 @@ class Selection(object):
         self.meta['since'] = since
         self.meta['until'] = until
         self.params['page'] = True
+        # when converting dates to timestamps, the returned timestamp
+        # will be for the first second on the date in question; 
+        # thus, for an inclusive query (end of day) we add another day
         self.params['since'] = utils.date.timestamp(since, utc=True)
-        self.params['until'] = utils.date.timestamp(until, utc=True)
+        self.params['until'] = utils.date.timestamp(until + timedelta(days=1), utc=True)
         return self
 
     @immutable
@@ -230,12 +233,21 @@ class Picture(object):
             self.height = self.qs['h'][0]
         else:
             self.origin = self.url
+            self.width = None
+            self.height = None
 
         self.basename = self.origin.split('/')[-1]
 
     def __repr__(self):
-        return u"<Picture: {} ({}x{})>".format(
-            self.basename, self.width, self.height)
+        if self.width and self.height:
+            dimensions = ' ({}x{})'.format(self.width, self.height)
+        else:
+            dimensions = ''
+
+        return u"<Picture: {name}{dimensions}>".format(
+            name=self.basename, 
+            dimensions=dimensions, 
+        )
 
 
 class Post(object):
@@ -252,13 +264,26 @@ class Post(object):
         self.name = raw.get('name')
         self.story = raw.get('story')
         self.link = raw.get('link')
+        self.message = raw.get('message')
         self.description = raw.get('description')
         self.shares = raw.get('shares')
         # TODO: figure out if *all* comments and likes are included 
         # when getting post data, or just some
         self.comments = utils.api.getdata(raw, 'comments')
         self.likes = utils.api.getdata(raw, 'likes')
-        self.quotes = utils.extract_quotes(self.description or '')
+        self.quotes = \
+            utils.extract_quotes(self.message or '') + \
+            utils.extract_quotes(self.description or '')
+        # `self.link` is part of Facebook's post schema
+        # `self.links` extracts links from the message and 
+        # the description of any embedded media
+        self.links = set(
+            utils.extract_links(self.message or '') + \
+            utils.extract_links(self.description or '')
+            )
+        if self.link:
+            self.links.add(self.link)
+
         if 'picture' in raw:
             self.picture = Picture(self, raw['picture'])
         else:
@@ -272,12 +297,19 @@ class Post(object):
         if not self.link:
             return None
 
-        url = utils.url.resolve(self.link)
+        link = utils.url.resolve(self.link)
 
         if clean:
-            url = utils.url.base(url)
+            return utils.url.base(link)
+        else:
+            return link
 
-        return url
+    def resolve_links(self, clean=False):
+        links = set([utils.url.resolve(link) for link in self.links])
+        if clean:
+            return set([utils.url.base(link) for link in links])
+        else:
+            return links
 
     def __repr__(self):
         time = self.created_time.date().isoformat()
