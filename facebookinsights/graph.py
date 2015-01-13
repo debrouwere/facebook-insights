@@ -84,7 +84,7 @@ class PostSelection(Selection):
                 # because `since` and `until` parameters serve 
                 # both as paginators and as range delimiters, 
                 # so there will always be a next page.
-                if post.created_time >= self.meta['since']:
+                if post.created_time.date() >= self.meta['since']:
                     posts.append(post)
                 else:
                     return posts

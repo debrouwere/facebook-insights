@@ -1,12 +1,12 @@
 # encoding: utf-8
 
 import time
-from datetime import datetime as builtin_datetime
+import datetime as builtin_datetime
 import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
-UTC = COMMON_ERA = builtin_datetime(1, 1, 1, tzinfo=pytz.utc)
+UTC = COMMON_ERA = builtin_datetime.datetime(1, 1, 1, tzinfo=pytz.utc)
 
 def parse(datestring, utc=False):
     if utc:
@@ -40,20 +40,22 @@ def date(obj, utc=False):
 
 formats = {
     'date': lambda date: date, 
-    'isoformat': lambda date: date.isoformat(), 
+    'iso': lambda date: date.isoformat(), 
     'timestamp': lambda date: timestamp(date, utc=True), 
-    }
+}
 
-def range(start, stop=None, months=0, days=0, format='iso'):
+def range(start, stop=None, months=0, days=0, format='date'):
     start = date(start, utc=True)
     stop = date(stop, utc=True)
 
     if days or months:
-        if stop:
-            raise Exception(
-                "A daterange cannot be defined using stop alongside months or days.")
-
-        stop = start + relativedelta(days=days-1, months=months)
+        if start:
+            stop = start + relativedelta(days=days-1, months=months)
+        elif stop:
+            start = stop - relativedelta(days=days-1, months=months)
+        else:
+            raise ValueError("Cannot construct a date range from months or days \
+                without specifying start or stop.")
     else:
         stop = stop or start
 
