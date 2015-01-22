@@ -1,16 +1,18 @@
 # encoding: utf-8
 
-import api
-import date
-import functional
-import server
-import url
+from __future__ import unicode_literals
+
+from . import api
+from . import date
+from . import functional
+from . import server
+from . import url
 
 import re
 import textwrap
 
 
-QUOTE_PATTERN = re.compile(ur'[\"\u201c\u201e\u00ab]\s?(.+?)\s?[\"\u201c\u201d\u00bb]')
+QUOTE_PATTERN = re.compile(r'[\"\u201c\u201e\u00ab]\s?(.+?)\s?[\"\u201c\u201d\u00bb]')
 LINK_PATTERN = re.compile(r'https?://')
 
 
