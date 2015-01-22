@@ -191,7 +191,7 @@ class InsightsSelection(Selection):
         # when a single metric is requested (and not 
         # wrapped in a list), we return a simplified 
         # data format
-        if self.meta['single']:
+        if self.meta.get('single', False):
             metric = self.meta['metrics'][0]
             results = [getattr(row, metric) for row in results]
 
