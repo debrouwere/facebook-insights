@@ -127,67 +127,86 @@ class InsightsSelection(Selection):
         return self
 
     @property
-    def _has_daterange(self):
+    def has_daterange(self):
         return 'since' in self.params or 'until' in self.params
 
-    def get(self):
+    @property
+    def days(self):
         # by default, Facebook returns three days 
         # worth' of insights data
-        if self._has_daterange:
+        if self.has_daterange:
             seconds = (self.meta['until'] - self.meta['since']).total_seconds()
-            days = math.ceil(seconds / 60 / 60 / 24)
+            return math.ceil(seconds / 60 / 60 / 24)
         else:
-            days = 3
+            return 3        
 
-        # TODO: for large date ranges, chunk them up and request
-        # the subranges in a batch request (this is a little bit
-        # more complex because multiple metrics are *also* batched
-        # and so these two things have to work together)
-        # 
+    @property
+    def is_valid(self):
         # TODO: investigate whether this applies too when asking for 
         # weekly or monthly metrics (that is, whether the limit is 93
         # result rows or truly 93 days)
-        if days > 31 * 3:
-            raise NotImplementedError(
-                "Can only fetch date ranges smaller than 3 months.")
+        if self.days <= 31 * 3:
+            return True
+        else:
+            return False
 
+    def _get_row_date(self, row):
+        end_time = row.get('end_time')
+
+        if end_time:
+            end_time = utils.date.parse(end_time)
+        else:
+            end_time = 'lifetime'  
+
+        return end_time
+
+    def get_raw(self):
         if 'metrics' in self.meta:
-            metrics = []
-            for metric in self.meta['metrics']:
-                metrics.append({'relative_url': metric})
+            metrics = [{'relative_url': metric} for metric in self.meta['metrics']]
             results = self.graph.all('insights', 
                 metrics, **self.params)
         else:
             results = [self.graph.get('insights', 
                 **self.params)]
 
+        return results
+
+    def get_rows(self):
+        # TODO: for large date ranges, chunk them up and request
+        # the subranges in a batch request (this is a little bit
+        # more complex because multiple metrics are *also* batched
+        # and so these two things have to work together)
+        if not self.is_valid:
+            raise NotImplementedError(
+                "Can only fetch date ranges smaller than 3 months.")
+
+        results = self.get_raw()
         datasets = []
         for result in results:
             datasets.extend(result['data'])
 
-        fields = ['end_time']
+        metrics = set()
+        for dataset in datasets:
+            metric = dataset['name']
+            metrics.add(metric)
+
         data = {}
         for dataset in datasets:
             metric = dataset['name']
-            rows = dataset['values']
-            fields.append(metric)
-
+            rows = dataset['values']            
             for row in rows:
+                date = self._get_row_date(row)
                 value = row['value']
-                end_time = row.get('end_time')
-                if end_time:
-                    end_time = utils.date.parse(end_time)
-                else:
-                    end_time = 'lifetime'
+                record = utils.record(metrics)
+                period = data.setdefault(date, record)
+                period[metric] = value
 
-                data.setdefault(end_time, {})[metric] = value
-
+        fields = set(['end_time']).union(metrics)
         Row = namedtuple('Row', fields)
+        return [Row(end_time=time, **values) for time, values in data.items()]
 
-        results = []
-        for time, values in data.items():
-            results.append(Row(end_time=time, **values))
-
+    def get(self):
+        results = self.get_rows()
         # when a single metric is requested (and not 
         # wrapped in a list), we return a simplified 
         # data format
@@ -197,13 +216,32 @@ class InsightsSelection(Selection):
 
         # when a lifetime metric is requested, 
         # we can simplify further
-        if self.params['period'] == 'lifetime':
+        if self.params.get('period') == 'lifetime':
             results = results[0]
 
-        return rows
+        return results
 
-    def serialize(self):
-        return [row._asdict() for row in self.get()]
+    NESTED_METRICS = (
+        'page_fans_online'
+    )
+
+    def serialize(self, flat=False, timestamp=False):
+        _rows = []
+        for row in self.get():
+            _row = row._asdict()
+
+            if flat:
+                _row = utils.flatten(_row, skip=self.NESTED_METRICS)
+
+            if timestamp:
+                end_time = utils.date.timestamp(_row['end_time'])
+            else:
+                end_time = str(_row['end_time'])
+
+            _row['end_time'] = end_time
+            _rows.append(_row)
+
+        return _rows
 
     def __repr__(self):
         if 'metrics' in self.meta:
@@ -211,7 +249,7 @@ class InsightsSelection(Selection):
         else:
             metrics = 'all available metrics'
 
-        if self._has_daterange:
+        if self.has_daterange:
             date = ' from {} to {}'.format(
                 self.meta['since'].date().isoformat(), 
                 self.meta['until'].date().isoformat(), 
@@ -222,7 +260,6 @@ class InsightsSelection(Selection):
         return u"<Insights for '{}' ({}{})>".format(
             repr(self.edge.name), metrics, date)
         
-
 
 class Picture(object):
     def __init__(self, post, raw):

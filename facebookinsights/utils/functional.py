@@ -28,4 +28,4 @@ def noop(value):
 
 
 def soak(*vargs, **kwargs):
-    pass
+    return None
