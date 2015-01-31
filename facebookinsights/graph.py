@@ -4,14 +4,13 @@ import os
 import re
 import math
 import copy
-import urlparse
 import functools
 from collections import namedtuple
 import pytz
 from datetime import datetime, timedelta
-import utils
-from utils.api import GraphAPI
-from utils.functional import immutable, memoize
+from . import utils
+from .utils.api import GraphAPI
+from .utils.functional import immutable, memoize
 
 
 class Selection(object):
@@ -266,8 +265,8 @@ class Picture(object):
         self.post = post
         self.graph = post.graph
         self.raw = self.url = raw
-        self.parsed_url = urlparse.urlparse(self.raw)
-        self.qs = urlparse.parse_qs(self.parsed_url.query)
+        self.parsed_url = utils.url.parse.urlparse(self.raw)
+        self.qs = utils.url.parse.parse_qs(self.parsed_url.query)
         
         if 'url' in self.qs:
             self.origin = self.qs['url'][0]

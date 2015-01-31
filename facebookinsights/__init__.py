@@ -1,9 +1,9 @@
 # encoding: utf-8
 
 import os
-import oauth
-import graph
-import utils
+from . import oauth
+from . import graph
+from . import utils
 # import commands
 
 
