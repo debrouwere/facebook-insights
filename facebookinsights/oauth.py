@@ -68,7 +68,7 @@ class OAuth2Service(rauth.OAuth2Service):
             client_secret=self.client_secret, 
             fb_exchange_token=short_token, 
             )
-        token = dict(utils.parse.parse_qsl(data))
+        token = dict(utils.url.parse.parse_qsl(data))
         return token['access_token']
 
     def get_page_tokens(self, long_token):
