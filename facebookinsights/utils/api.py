@@ -1,9 +1,15 @@
 # encoding: utf-8
 
 import copy
-import urllib
 import facepy
 
+try:
+    import urllib.parse as urlparse
+    from urllib.parse import urlencode
+except ImportError:
+    from urllib import urlencode
+    import urlparse
+    
 
 def getdata(obj, key, default=None):
     if key in obj:
@@ -25,20 +31,15 @@ class GraphAPI(facepy.GraphAPI):
     def _resolve_endpoint(self, endpoint, options={}):
         endpoint = self._segmentize_endpoint(endpoint)
         url = "/".join(self.base + endpoint)
-
         # remove facepy options, retain everything 
         # that needs to end up in the querystring
         blacklist = ['path', 'page', 'retry', 'data', 'method', 'relative_url']
-        for key in options.keys():
-            if key in blacklist:
-                del options[key]
-
         if options:
-            qs = urllib.urlencode(options)
+            qs = urlencode({key:value for key,value in options.items() if key not in blacklist}  )
             return url + '?' + qs
         else:
             return url
-
+    
     def partial(self, base):
         client = GraphAPI(self.oauth_token)
         client.base = client.base + self._segmentize_endpoint(base)
