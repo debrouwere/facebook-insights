@@ -10,6 +10,7 @@ setup(name='facebookinsights',
     version='0.3.3',
     license='ISC',
     packages=find_packages(),
+    include_package_data=True,
     keywords='data analytics api wrapper facebook insights',
     entry_points = {
           'console_scripts': [
