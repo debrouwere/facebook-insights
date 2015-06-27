@@ -3,13 +3,7 @@
 import copy
 import facepy
 
-try:
-    import urllib.parse as urlparse
-    from urllib.parse import urlencode
-except ImportError:
-    from urllib import urlencode
-    import urlparse
-    
+from . import url
 
 def getdata(obj, key, default=None):
     if key in obj:
@@ -35,7 +29,7 @@ class GraphAPI(facepy.GraphAPI):
         # that needs to end up in the querystring
         blacklist = ['path', 'page', 'retry', 'data', 'method', 'relative_url']
         if options:
-            qs = urlencode({key:value for key,value in options.items() if key not in blacklist}  )
+            qs = url.encode({key: value for key, value in options.items() if key not in blacklist})
             return url + '?' + qs
         else:
             return url
