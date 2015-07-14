@@ -6,7 +6,16 @@ import pytz
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
+# Python 2 and 3 compatibility
+try:
+    unicode = unicode
+    basestring = basestring
+except NameError:
+    unicode = basestring = str
+
+
 UTC = COMMON_ERA = builtin_datetime.datetime(1, 1, 1, tzinfo=pytz.utc).date()
+
 
 def parse(datestring, utc=False):
     if utc:
