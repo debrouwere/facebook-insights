@@ -24,15 +24,15 @@ class GraphAPI(facepy.GraphAPI):
 
     def _resolve_endpoint(self, endpoint, options={}):
         endpoint = self._segmentize_endpoint(endpoint)
-        url = "/".join(self.base + endpoint)
+        resolved_url = "/".join(self.base + endpoint)
         # remove facepy options, retain everything 
         # that needs to end up in the querystring
         blacklist = ['path', 'page', 'retry', 'data', 'method', 'relative_url']
         if options:
             qs = url.encode({key: value for key, value in options.items() if key not in blacklist})
-            return url + '?' + qs
+            return resolved_url + '?' + qs
         else:
-            return url
+            return resolved_url
     
     def partial(self, base):
         client = GraphAPI(self.oauth_token)
@@ -50,10 +50,10 @@ class GraphAPI(facepy.GraphAPI):
             params.update(options)
             segments = self._segmentize_endpoint(endpoint)
             relative_url = params.get('relative_url')
-            url = self._resolve_endpoint(segments + [relative_url], params)
+            resolved_url = self._resolve_endpoint(segments + [relative_url], params)
             request = {
                 'method': method, 
-                'relative_url': url, 
+                'relative_url': resolved_url, 
                 }
 
             if body:
