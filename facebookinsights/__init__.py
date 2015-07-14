@@ -15,10 +15,11 @@ def authenticate(client_id=None, client_secret=None, tokens=[], token=None):
 
     secrets = client_id and client_secret
     credentials = token or tokens
-    if secrets:
-        tokens = oauth.authorize(client_id, client_secret)
-    elif credentials:
+
+    if credentials:
         pass
+    elif secrets:
+        tokens = oauth.authorize(client_id, client_secret)
     else:
         raise KeyError(utils.dedent("""
             Authentication requires either one or more tokens, 
@@ -27,6 +28,7 @@ def authenticate(client_id=None, client_secret=None, tokens=[], token=None):
             FACEBOOK_INSIGHTS_CLIENT_ID and 
             FACEBOOK_INSIGHTS_CLIENT_SECRET.
             """))
+
     if token:
         return graph.Page(token)
     else:
